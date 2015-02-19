@@ -38,6 +38,7 @@
 
  interpolation - (string) Default's *linear*. Describes the way nodes are interpolated. Possible values are 'linear' and 'polar'.
  levelDistance - (number) Default's *100*. The distance between levels of the tree.
+ radialExponent - (number) Default's *1.0*. The exponent for radial distance.
 
  Instance Properties:
 
@@ -59,7 +60,8 @@ $jit.RGraph = new Class( {
 
         var config = {
             interpolation: 'linear',
-            levelDistance: 100
+            levelDistance: 100,
+            radialExponent: 1.0
         };
 
         this.controller = this.config = $.merge(Options("Canvas", "Node", "Edge",
@@ -112,9 +114,9 @@ $jit.RGraph = new Class( {
 
      */
     createLevelDistanceFunc: function(){
-        var ld = this.config.levelDistance;
+        var cnf = this.config;
         return function(elem){
-            return (elem._depth + 1) * ld;
+            return Math.pow((elem._depth + 1) * cnf.levelDistance, cnf.radialExponent);
         };
     },
 
@@ -246,6 +248,14 @@ $jit.RGraph = new Class( {
 $jit.RGraph.$extend = true;
 
 (function(RGraph){
+
+    /* helper function to determine scaling */
+    function radialScale(pos, cnf) {
+        if (cnf.radialExponent == 1.0) return 1.0;
+        var rho = pos.getp(true).rho,
+            r = Math.pow(rho, 1.0/cnf.radialExponent);
+        return Math.pow(cnf.radialExponent, r / cnf.levelDistance);
+    }
 
     /*
      Class: RGraph.Op
@@ -504,77 +514,89 @@ $jit.RGraph.$extend = true;
         'circle': {
             'render': function(node, canvas){
                 var pos = node.pos.getc(true),
-                    dim = node.getData('dim');
-                this.nodeHelper.circle.render('fill', pos, dim, canvas);
+                    dim = node.getData('dim'),
+                    sc = radialScale(node.pos, this.config);
+                this.nodeHelper.circle.render('fill', pos, sc*dim, canvas);
             },
             'contains': function(node, pos){
-                var npos = node.pos.getc(true),
-                    dim = node.getData('dim');
-                return this.nodeHelper.circle.contains(npos, pos, dim);
+                var pos = node.pos.getc(true),
+                    dim = node.getData('dim'),
+                    sc = radialScale(node.pos, this.config);
+                return this.nodeHelper.circle.contains(npos, pos, sc*dim);
             }
         },
         'ellipse': {
             'render': function(node, canvas){
                 var pos = node.pos.getc(true),
                     width = node.getData('width'),
-                    height = node.getData('height');
-                this.nodeHelper.ellipse.render('fill', pos, width, height, canvas);
+                    height = node.getData('height'),
+                    sc = radialScale(node.pos, this.config);
+                this.nodeHelper.ellipse.render('fill', pos, sc*width, sc*height, canvas);
             },
             'contains': function(node, pos){
                 var npos = node.pos.getc(true),
                     width = node.getData('width'),
-                    height = node.getData('height');
-                return this.nodeHelper.ellipse.contains(npos, pos, width, height);
+                    height = node.getData('height'),
+                    sc = radialScale(node.pos, this.config);
+                return this.nodeHelper.ellipse.contains(npos, pos, sc*width, sc*height);
             }
         },
         'square': {
             'render': function(node, canvas){
                 var pos = node.pos.getc(true),
-                    dim = node.getData('dim');
-                this.nodeHelper.square.render('fill', pos, dim, canvas);
+                    dim = node.getData('dim'),
+                    sc = radialScale(node.pos, this.config);
+                this.nodeHelper.square.render('fill', pos, sc*dim, canvas);
             },
             'contains': function(node, pos){
                 var npos = node.pos.getc(true),
-                    dim = node.getData('dim');
-                return this.nodeHelper.square.contains(npos, pos, dim);
+                    dim = node.getData('dim'),
+                    sc = radialScale(node.pos, this.config);
+                return this.nodeHelper.square.contains(npos, pos, sc*dim);
             }
         },
         'rectangle': {
             'render': function(node, canvas){
                 var pos = node.pos.getc(true),
                     width = node.getData('width'),
-                    height = node.getData('height');
-                this.nodeHelper.rectangle.render('fill', pos, width, height, canvas);
+                    height = node.getData('height'),
+                    sc = radialScale(node.pos, this.config);
+                this.nodeHelper.rectangle.render('fill', pos, sc*width, sc*height, canvas);
             },
             'contains': function(node, pos){
                 var npos = node.pos.getc(true),
                     width = node.getData('width'),
-                    height = node.getData('height');
-                return this.nodeHelper.rectangle.contains(npos, pos, width, height);
+                    height = node.getData('height'),
+                    sc = radialScale(node.pos, this.config);
+                return this.nodeHelper.rectangle.contains(npos, pos, sc*width, sc*height);
             }
         },
         'triangle': {
             'render': function(node, canvas){
                 var pos = node.pos.getc(true),
-                    dim = node.getData('dim');
-                this.nodeHelper.triangle.render('fill', pos, dim, canvas);
+                    dim = node.getData('dim'),
+                    sc = radialScale(node.pos, this.config);
+                this.nodeHelper.triangle.render('fill', pos, sc*dim, canvas);
             },
             'contains': function(node, pos) {
                 var npos = node.pos.getc(true),
-                    dim = node.getData('dim');
-                return this.nodeHelper.triangle.contains(npos, pos, dim);
+                    dim = node.getData('dim'),
+                    sc = radialScale(node.pos, this.config);
+                return this.nodeHelper.triangle.contains(npos, pos, sc*dim);
             }
         },
         'star': {
             'render': function(node, canvas){
                 var pos = node.pos.getc(true),
-                    dim = node.getData('dim');
-                this.nodeHelper.star.render('fill', pos, dim, canvas);
+                    dim = node.getData('dim'),
+                    sc = radialScale(node.pos, this.config);
+                this.nodeHelper.star.render('fill', pos, sc*dim, canvas);
             },
             'contains': function(node, pos) {
                 var npos = node.pos.getc(true),
-                    dim = node.getData('dim');
-                return this.nodeHelper.star.contains(npos, pos, dim);
+                    dim = node.getData('dim'),
+                    sc = radialScale(node.pos, this.config);
+                return this.nodeHelper.star.contains(npos, pos, sc*dim);
             }
         }
     });

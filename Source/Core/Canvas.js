@@ -514,6 +514,7 @@ var Canvas;
       this.config = $.merge({
         idSuffix: '-bkcanvas',
         levelDistance: 100,
+        radialExponent: 1.0,
         numberOfCircles: 6,
         CanvasStyles: {},
         offset: 0
@@ -530,10 +531,11 @@ var Canvas;
       //set canvas styles
       for(var s in styles) ctx[s] = styles[s];
       var n = conf.numberOfCircles,
-          rho = conf.levelDistance;
+          rho = conf.levelDistance,
+          exp = conf.radialExponent;
       for(var i=1; i<=n; i++) {
         ctx.beginPath();
-        ctx.arc(0, 0, rho * i, 0, 2 * Math.PI, false);
+        ctx.arc(0, 0, Math.pow(rho * i, exp), 0, 2 * Math.PI, false);
         ctx.stroke();
         ctx.closePath();
       }
