@@ -41,6 +41,7 @@ Graph.Plot = {
           'lineWidth': 'number',
           'angularWidth':'number',
           'span':'number',
+          'scale':'number',
           'valueArray':'array-number',
           'dimArray':'array-number',
           'vertices':'polygon'

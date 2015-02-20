@@ -59,6 +59,7 @@
   align - (string) Default's *center*. Possible values are 'center', 'left' or 'right'. Used only by the <ST> visualization, these parameters are used for aligning nodes when some of they dimensions vary.
   angularWidth - (number) Default's *1*. Used in radial layouts (like <RGraph> or <Sunburst> visualizations). The amount of relative 'space' set for a node.
   span - (number) Default's *1*. Used in radial layouts (like <RGraph> or <Sunburst> visualizations). The angle span amount set for a node.
+  scale - (number) Default's *1.0*. Used by the <RGraph> visualization to indicate node scaling.
   CanvasStyles - (object) Default's an empty object (i.e. {}). Attach any other canvas specific property that you'd set to the canvas context before plotting a Node.
 
 */
@@ -79,6 +80,7 @@ Options.Node = {
   align: "center",
   angularWidth:1,
   span:1,
+  scale: 1.0,
   //Raw canvas styles to be
   //applied to the context instance
   //before plotting a node

@@ -39,6 +39,7 @@
  interpolation - (string) Default's *linear*. Describes the way nodes are interpolated. Possible values are 'linear' and 'polar'.
  levelDistance - (number) Default's *100*. The distance between levels of the tree.
  radialExponent - (number) Default's *1.0*. The exponent for radial distance.
+ numberOfCircles - (number) Default's *6*. The number of circles a.k.a. depth to show.
 
  Instance Properties:
 
@@ -61,7 +62,8 @@ $jit.RGraph = new Class( {
         var config = {
             interpolation: 'linear',
             levelDistance: 100,
-            radialExponent: 1.0
+            radialExponent: 1.0,
+            numberOfCircles: 6
         };
 
         this.controller = this.config = $.merge(Options("Canvas", "Node", "Edge",
@@ -74,7 +76,10 @@ $jit.RGraph = new Class( {
         } else {
             if(canvasConfig.background) {
                 canvasConfig.background = $.merge({
-                    type: 'Circles'
+                    type: 'Circles',
+                    levelDistance: this.config.levelDistance,
+                    radialExponent: this.config.radialExponent,
+                    numberOfCircles: this.config.numberOfCircles
                 }, canvasConfig.background);
             }
             this.canvas = new Canvas(this, canvasConfig);
@@ -102,6 +107,39 @@ $jit.RGraph = new Class( {
         this.initializeExtras();
     },
 
+  /*
+   * Method: compute
+   * 
+   * Computes nodes' positions and constrains.
+   * 
+   * Parameters:
+   * 
+   * property - _optional_ A <Graph.Node> position property to store the new
+   * positions. Possible values are 'pos', 'end' or 'start'.
+   * 
+   */
+  compute : function(property) {
+    var prop = $.splat(property || [ 'current', 'start', 'end' ]);
+    NodeDim.compute(this.graph, prop, this.config);
+    this.graph.computeLevels(this.root, 0, "ignore");
+    var lengthFunc = this.createLevelDistanceFunc(); 
+    this.computeScales(prop);
+    this.computeAngularWidths(prop);
+    this.computePositions(prop, lengthFunc);
+  },
+
+  computeScales: function(propArray) {
+    var that = this;
+    this.graph.eachNode(function(elem) {
+        var sc = Math.pow(that.config.radialExponent, elem._depth);
+        for ( var i=0, l=propArray.length; i < l; i++) {
+          var pi = propArray[i];
+          elem.setData("scale", sc, pi);
+          elem.drawn = (elem._depth <= that.config.numberOfCircles);
+        }
+    }, "ignore");
+  },
+
     /*
 
      createLevelDistanceFunc
@@ -118,6 +156,21 @@ $jit.RGraph = new Class( {
         return function(elem){
             return Math.pow((elem._depth + 1) * cnf.levelDistance, cnf.radialExponent);
         };
+    },
+
+    /*
+     * Method: setSubtreeAngularWidth
+     * 
+     * Sets the angular width for a subtree. Overridden to take numberOfCircles into account.
+     */
+    setSubtreeAngularWidth : function(elem) {
+      var that = this, nodeAW = elem._angularWidth, sumAW = 0;
+      elem.eachSubnode(function(child) {
+        that.setSubtreeAngularWidth(child);
+        if (elem._depth < that.config.numberOfCircles)
+          sumAW += child._treeAngularWidth;
+      }, "ignore");
+      elem._treeAngularWidth = Math.max(nodeAW, sumAW);
     },
 
     /*
@@ -143,6 +196,7 @@ $jit.RGraph = new Class( {
     plot: function(){
         this.fx.plot();
     },
+
     /*
      getNodeAndParentAngle
 
@@ -165,6 +219,7 @@ $jit.RGraph = new Class( {
             theta: theta
         };
     },
+
     /*
      tagChildren
 
@@ -184,6 +239,7 @@ $jit.RGraph = new Class( {
             }
         }
     },
+
     /*
      Method: onClick
 
@@ -233,7 +289,7 @@ $jit.RGraph = new Class( {
             this.fx.animate($.merge( {
                 hideLabels: true,
                 modes: [
-                    mode
+                    mode, 'node-property:scale'
                 ]
             }, opt, {
                 onComplete: function(){
@@ -461,6 +517,7 @@ $jit.RGraph.$extend = true;
          */
         placeLabel: function(tag, node, controller){
             var pos = node.pos.getc(true),
+                sc = radialScale(node.pos, this.viz.config),
                 canvas = this.viz.canvas,
                 ox = canvas.translateOffsetX,
                 oy = canvas.translateOffsetY,
@@ -515,13 +572,13 @@ $jit.RGraph.$extend = true;
             'render': function(node, canvas){
                 var pos = node.pos.getc(true),
                     dim = node.getData('dim'),
-                    sc = radialScale(node.pos, this.config);
+                    sc = node.getData('scale');
                 this.nodeHelper.circle.render('fill', pos, sc*dim, canvas);
             },
             'contains': function(node, pos){
                 var pos = node.pos.getc(true),
                     dim = node.getData('dim'),
-                    sc = radialScale(node.pos, this.config);
+                    sc = node.getData('scale');
                 return this.nodeHelper.circle.contains(npos, pos, sc*dim);
             }
         },
@@ -530,14 +587,14 @@ $jit.RGraph.$extend = true;
                 var pos = node.pos.getc(true),
                     width = node.getData('width'),
                     height = node.getData('height'),
-                    sc = radialScale(node.pos, this.config);
+                    sc = node.getData('scale');
                 this.nodeHelper.ellipse.render('fill', pos, sc*width, sc*height, canvas);
             },
             'contains': function(node, pos){
                 var npos = node.pos.getc(true),
                     width = node.getData('width'),
                     height = node.getData('height'),
-                    sc = radialScale(node.pos, this.config);
+                    sc = node.getData('scale');
                 return this.nodeHelper.ellipse.contains(npos, pos, sc*width, sc*height);
             }
         },
@@ -545,13 +602,13 @@ $jit.RGraph.$extend = true;
             'render': function(node, canvas){
                 var pos = node.pos.getc(true),
                     dim = node.getData('dim'),
-                    sc = radialScale(node.pos, this.config);
+                    sc = node.getData('scale');
                 this.nodeHelper.square.render('fill', pos, sc*dim, canvas);
             },
             'contains': function(node, pos){
                 var npos = node.pos.getc(true),
                     dim = node.getData('dim'),
-                    sc = radialScale(node.pos, this.config);
+                    sc = node.getData('scale');
                 return this.nodeHelper.square.contains(npos, pos, sc*dim);
             }
         },
@@ -560,14 +617,14 @@ $jit.RGraph.$extend = true;
                 var pos = node.pos.getc(true),
                     width = node.getData('width'),
                     height = node.getData('height'),
-                    sc = radialScale(node.pos, this.config);
+                    sc = node.getData('scale');
                 this.nodeHelper.rectangle.render('fill', pos, sc*width, sc*height, canvas);
             },
             'contains': function(node, pos){
                 var npos = node.pos.getc(true),
                     width = node.getData('width'),
                     height = node.getData('height'),
-                    sc = radialScale(node.pos, this.config);
+                    sc = node.getData('scale');
                 return this.nodeHelper.rectangle.contains(npos, pos, sc*width, sc*height);
             }
         },
@@ -575,13 +632,13 @@ $jit.RGraph.$extend = true;
             'render': function(node, canvas){
                 var pos = node.pos.getc(true),
                     dim = node.getData('dim'),
-                    sc = radialScale(node.pos, this.config);
+                    sc = node.getData('scale');
                 this.nodeHelper.triangle.render('fill', pos, sc*dim, canvas);
             },
             'contains': function(node, pos) {
                 var npos = node.pos.getc(true),
                     dim = node.getData('dim'),
-                    sc = radialScale(node.pos, this.config);
+                    sc = node.getData('scale');
                 return this.nodeHelper.triangle.contains(npos, pos, sc*dim);
             }
         },
@@ -589,13 +646,13 @@ $jit.RGraph.$extend = true;
             'render': function(node, canvas){
                 var pos = node.pos.getc(true),
                     dim = node.getData('dim'),
-                    sc = radialScale(node.pos, this.config);
+                    sc = node.getData('scale');
                 this.nodeHelper.star.render('fill', pos, sc*dim, canvas);
             },
             'contains': function(node, pos) {
                 var npos = node.pos.getc(true),
                     dim = node.getData('dim'),
-                    sc = radialScale(node.pos, this.config);
+                    sc = node.getData('scale');
                 return this.nodeHelper.star.contains(npos, pos, sc*dim);
             }
         }
