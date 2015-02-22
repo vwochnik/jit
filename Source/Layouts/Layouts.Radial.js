@@ -42,17 +42,12 @@ Layouts.Radial = new Class({
     var parent = this.parent;
     var config = this.config;
 
-    for ( var i=0, l=propArray.length; i < l; i++) {
-      var pi = propArray[i];
-      root.setPos($P(0, 0), pi);
-      root.setData('span', Math.PI * 2, pi);
-    }
-
-    root.angleSpan = {
+    this.setNodePositionAndAngleSpan(parent, root, propArray, $P(0, 0), 2*Math.PI, {
       begin : 0,
-      end : 2 * Math.PI
-    };
+      end : 2*Math.PI 
+    });
 
+    var that = this;
     graph.eachBFS(this.root, function(elem) {
       var angleSpan = elem.angleSpan.end - elem.angleSpan.begin;
       var angleInit = elem.angleSpan.begin;
@@ -63,7 +58,7 @@ Layouts.Radial = new Class({
         totalAngularWidths += sib._treeAngularWidth;
         //get max dim
         for ( var i=0, l=propArray.length; i < l; i++) {
-          var pi = propArray[i], dim = sib.getData('dim', pi);
+          var pi = propArray[i], dim = that.getNodeDimensions(sib, pi);
           maxDim[pi] = (pi in maxDim)? (dim > maxDim[pi]? dim : maxDim[pi]) : dim;
         }
         subnodes.push(sib);
@@ -83,17 +78,16 @@ Layouts.Radial = new Class({
           var angleProportion = child._treeAngularWidth / totalAngularWidths * angleSpan;
           var theta = angleInit + angleProportion / 2;
 
-          for ( var i=0, l=propArray.length; i < l; i++) {
-            var pi = propArray[i];
-            child.setPos($P(theta, len), pi);
-            child.setData('span', angleProportion, pi);
-            child.setData('dim-quotient', child.getData('dim', pi) / maxDim[pi], pi);
-          }
-
-          child.angleSpan = {
+          that.setNodePositionAndAngleSpan(elem, child, propArray, $P(theta, len), angleProportion, {
             begin : angleInit,
             end : angleInit + angleProportion
-          };
+          });
+
+          for ( var i=0, l=propArray.length; i < l; i++) {
+            var pi = propArray[i];
+            child.setData('dim-quotient', that.getNodeDimensions(child, pi) / maxDim[pi], pi);
+          }
+
           angleInit += angleProportion;
         }
       }
@@ -146,6 +140,31 @@ Layouts.Radial = new Class({
   computeAngularWidths : function(prop) {
     this.setAngularWidthForNodes(prop);
     this.setSubtreesAngularWidth();
+  },
+
+  /*
+   * Method: setNodePositionAndAngleSpan
+   *
+   * Sets a node's position and angle span.
+   */
+  setNodePositionAndAngleSpan: function(parent, elem, props, pos, span, angleSpan) {
+    for ( var i=0, l=props.length; i < l; i++) {
+      var pi = props[i];
+      elem.setPos(pos, pi);
+      elem.setData('span', span, pi);
+    }
+
+    elem.angleSpan = angleSpan;
+  },
+
+  /*
+   * Method: getNodeDimensions
+   * 
+   * Retrieves the node's dimensions for a given property. This method can be
+   * overridden in case a different dimension shall be used for the calculation.
+   */
+  getNodeDimensions: function(elem, prop) {
+    return elem.getData('dim', prop);
   }
 
 });

@@ -36,6 +36,7 @@
 
  Additionally, there are other parameters and some default values changed
 
+  constrained - (boolean) Default's *false*. Whether to show the entire radial graph when loaded or just the number of circles specified by _numberOfCircles_.
  interpolation - (string) Default's *linear*. Describes the way nodes are interpolated. Possible values are 'linear' and 'polar'.
  levelDistance - (number) Default's *100*. The distance between levels of the tree.
  radialExponent - (number) Default's *1.0*. The exponent for radial distance.
@@ -60,6 +61,7 @@ $jit.RGraph = new Class( {
         var $RGraph = $jit.RGraph;
 
         var config = {
+            constrained: false,
             interpolation: 'linear',
             levelDistance: 100,
             radialExponent: 1.0,
@@ -135,7 +137,7 @@ $jit.RGraph = new Class( {
         for ( var i=0, l=propArray.length; i < l; i++) {
           var pi = propArray[i];
           elem.setData("scale", sc, pi);
-          elem.drawn = (elem._depth <= that.config.numberOfCircles);
+          //elem.drawn = (elem._depth <= that.config.numberOfCircles);
         }
     }, "ignore");
   },
@@ -154,7 +156,7 @@ $jit.RGraph = new Class( {
     createLevelDistanceFunc: function(){
         var cnf = this.config;
         return function(elem){
-            return Math.pow((elem._depth + 1) * cnf.levelDistance, cnf.radialExponent);
+            return Math.pow((elem._depth+1) * cnf.levelDistance, cnf.radialExponent);
         };
     },
 
@@ -164,14 +166,48 @@ $jit.RGraph = new Class( {
      * Sets the angular width for a subtree. Overridden to take numberOfCircles into account.
      */
     setSubtreeAngularWidth : function(elem) {
-      var that = this, nodeAW = elem._angularWidth, sumAW = 0;
+      var that = this, cnf = this.config, nodeAW = elem._angularWidth, sumAW = 0;
       elem.eachSubnode(function(child) {
         that.setSubtreeAngularWidth(child);
-        if (elem._depth < that.config.numberOfCircles)
+        if ((!cnf.constrained) || (elem._depth < cnf.numberOfCircles))
           sumAW += child._treeAngularWidth;
       }, "ignore");
       elem._treeAngularWidth = Math.max(nodeAW, sumAW);
     },
+
+  /*
+   * Method: setNodePositionAndAngleSpan
+   *
+   * Sets a node's position and angle span.
+   */
+  setNodePositionAndAngleSpan: function(parent, elem, props, pos, span, angleSpan) {
+    var cnf = this.config;
+    if ((parent) && (cnf.constrained) && (elem._depth > cnf.numberOfCircles)) {
+        elem.angleSpan = parent.angleSpan;
+        for ( var i=0, l=props.length; i < l; i++) {
+          var pi = props[i];
+          elem.setPos(parent.getPos(pi), pi);
+          elem.setData('span', parent.getData('span', pi), pi);
+        }
+    } else {
+        elem.angleSpan = angleSpan;
+        for ( var i=0, l=props.length; i < l; i++) {
+          var pi = props[i];
+          elem.setPos(pos, pi);
+          elem.setData('span', span, pi);
+        }
+    }
+  },
+
+  /*
+   * Method: getNodeDimensions
+   * 
+   * Retrieves the node's dimensions for a given property. This method can be
+   * overridden in case a different dimension shall be used for the calculation.
+   */
+  getNodeDimensions: function(elem, prop) {
+    return elem.getData('dim', prop) * elem.getData('scale', prop);
+  },
 
     /*
      Method: refresh 
